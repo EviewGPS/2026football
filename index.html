@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 世界杯实时赛况</title>
+<style>
+:root{
+  --bg:#0a0e1a; --card:#131a2e; --card2:#1a2340; --border:#243055;
+  --text:#e8ecf6; --muted:#8b97b8; --accent:#2dd4a8; --accent2:#4d8df0;
+  --live:#ff4d6d; --gold:#f5c451;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:linear-gradient(135deg,#0d1b3e 0%,#14532d 50%,#7a1f2b 100%);padding:28px 16px 20px;text-align:center;position:relative;overflow:hidden}
+header::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.08),transparent 50%)}
+header h1{font-size:clamp(22px,4vw,32px);font-weight:800;letter-spacing:1px;position:relative;z-index:1}
+header p{color:rgba(255,255,255,.75);margin-top:6px;font-size:14px;position:relative;z-index:1}
+.refresh-bar{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.7)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.refresh-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:4px 14px;border-radius:20px;cursor:pointer;font-size:12px;transition:.2s}
+.refresh-btn:hover{background:rgba(255,255,255,.22)}
+nav{display:flex;justify-content:center;gap:4px;padding:12px;background:var(--card);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);flex-wrap:wrap}
+nav button{background:transparent;border:none;color:var(--muted);padding:10px 18px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;transition:.2s}
+nav button:hover{color:var(--text);background:var(--card2)}
+nav button.active{color:#0a0e1a;background:var(--accent)}
+main{max-width:860px;margin:0 auto;padding:20px 14px 60px}
+.section{display:none}.section.active{display:block;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.day-header{font-size:14px;font-weight:700;color:var(--accent);margin:22px 0 10px;display:flex;align-items:center;gap:8px}
+.day-header::after{content:"";flex:1;height:1px;background:var(--border)}
+.round-tag{font-size:11px;color:var(--gold);border:1px solid rgba(245,196,81,.4);padding:1px 8px;border-radius:10px;font-weight:600}
+.match{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:.2s}
+.match:hover{border-color:var(--accent2);transform:translateY(-1px)}
+.match.live{border-color:var(--live);box-shadow:0 0 16px rgba(255,77,109,.15)}
+.match-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;color:var(--muted)}
+.status{font-weight:700;font-size:12px;padding:2px 10px;border-radius:10px}
+.status.pre{background:rgba(77,141,240,.15);color:var(--accent2)}
+.status.in{background:rgba(255,77,109,.18);color:var(--live);animation:pulse 1.5s infinite}
+.status.post{background:rgba(139,151,184,.15);color:var(--muted)}
+.teams{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.team{display:flex;align-items:center;gap:10px;min-width:0}
+.team.away{flex-direction:row-reverse;text-align:right}
+.team img{width:34px;height:34px;object-fit:contain;flex-shrink:0}
+.team .name{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score{font-size:24px;font-weight:800;letter-spacing:2px;text-align:center;min-width:70px}
+.score.dim{color:var(--muted);font-size:14px;font-weight:600;letter-spacing:0}
+.venue{margin-top:8px;font-size:12px;color:var(--muted);text-align:center}
+.date-nav{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 12px;scrollbar-width:thin}
+.date-nav button{flex-shrink:0;background:var(--card);border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
+.date-nav button:hover{border-color:var(--accent2);color:var(--text)}
+.date-nav button.sel{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+.group-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.group-card h3{padding:12px 16px;font-size:15px;color:var(--gold);background:var(--card2)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--muted);font-weight:600;text-align:center;padding:8px 6px;border-bottom:1px solid var(--border)}
+th:first-child,td:first-child{text-align:left;padding-left:16px}
+td{padding:9px 6px;text-align:center;border-bottom:1px solid rgba(36,48,85,.5)}
+tr:last-child td{border-bottom:none}
+tr.q td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.tname{display:flex;align-items:center;gap:8px;font-weight:600}
+.tname img{width:22px;height:22px;object-fit:contain}
+.pts{font-weight:800;color:var(--accent)}
+.loading,.error,.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error button{margin-top:12px;background:var(--accent2);color:#fff;border:none;padding:8px 20px;border-radius:8px;cursor:pointer}
+.about{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;line-height:1.9;font-size:14px}
+.about h3{color:var(--accent);margin-bottom:8px;margin-top:18px}
+.about h3:first-child{margin-top:0}
+.about a{color:var(--accent2)}
+footer{text-align:center;padding:24px;color:var(--muted);font-size:12px;border-top:1px solid var(--border)}
+@media(max-width:520px){
+  .team .name{font-size:13px}
+  .team img{width:26px;height:26px}
+  .score{font-size:19px;min-width:54px}
+  nav button{padding:8px 12px;font-size:13px}
+  th,td{padding:7px 4px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚽ 2026 FIFA 世界杯</h1>
+  <p>美国 · 加拿大 · 墨西哥 | 48 支球队 · 104 场比赛</p>
+  <div class="refresh-bar">
+    <span class="dot"></span>
+    <span id="lastUpdate">数据加载中…</span>
+    <button class="refresh-btn" onclick="refreshAll(true)">↻ 刷新</button>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-tab="today" onclick="switchTab('today')">今日比赛</button>
+  <button data-tab="schedule" onclick="switchTab('schedule')">完整赛程</button>
+  <button data-tab="standings" onclick="switchTab('standings')">小组积分榜</button>
+  <button data-tab="about" onclick="switchTab('about')">关于</button>
+</nav>
+
+<main>
+  <div id="today" class="section active"><div class="loading"><div class="spinner"></div>正在获取比赛数据…</div></div>
+  <div id="schedule" class="section">
+    <div class="date-nav" id="dateNav"></div>
+    <div id="scheduleList"><div class="loading"><div class="spinner"></div>加载中…</div></div>
+  </div>
+  <div id="standings" class="section"><div class="loading"><div class="spinner"></div>加载积分榜…</div></div>
+  <div id="about" class="section">
+    <div class="about">
+      <h3>📡 数据来源</h3>
+      <p>本页面通过 ESPN 公开数据接口实时获取比赛数据，无需 API 密钥。比赛进行期间每 60 秒自动刷新一次比分。数据接口为非官方接口，如有变动可能导致页面失效。</p>
+      <h3>🏆 赛事简介</h3>
+      <p>2026 年国际足联世界杯于 6 月 11 日至 7 月 19 日在美国、加拿大和墨西哥三国举行，这是历史上首届由 48 支球队参加的世界杯，共 104 场比赛，分布在 16 座主办城市。48 队分为 12 个小组，每组前两名及 8 个成绩最好的小组第三名晋级 32 强淘汰赛。</p>
+      <h3>🕐 时区说明</h3>
+      <p>所有比赛时间均已自动转换为你的本地时区显示。</p>
+      <h3>💻 开源部署</h3>
+      <p>本页面为单文件静态网页，可直接托管于 GitHub Pages。</p>
+    </div>
+  </div>
+</main>
+
+<footer>数据来自 ESPN 公开接口 · 仅供学习交流使用 · 非 FIFA 官方页面</footer>
+
+<script>
+const API = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=300&dates=20260611-20260719";
+const STANDINGS_API = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings?season=2026";
+let allEvents = [];
+let selectedDate = null;
+let timer = null;
+
+// ----- 轮次判断（按日期范围） -----
+function roundLabel(d){
+  const ymd = +fmtYMD(d).replace(/-/g,"");
+  if (ymd <= 20260627) return "小组赛";
+  if (ymd <= 20260703) return "32 强";
+  if (ymd <= 20260707) return "16 强";
+  if (ymd <= 20260711) return "四分之一决赛";
+  if (ymd <= 20260715) return "半决赛";
+  if (ymd === 20260718) return "季军赛";
+  if (ymd === 20260719) return "决赛";
+  return "";
+}
+function fmtYMD(d){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${dd}`;
+}
+function fmtCN(d){
+  const wd=["周日","周一","周二","周三","周四","周五","周六"][d.getDay()];
+  return `${d.getMonth()+1}月${d.getDate()}日 ${wd}`;
+}
+function fmtTime(d){
+  return d.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"});
+}
+
+// ----- 渲染单场比赛卡片 -----
+function matchCard(ev){
+  const comp = ev.competitions && ev.competitions[0];
+  if(!comp) return "";
+  const d = new Date(ev.date);
+  const state = (ev.status && ev.status.type && ev.status.type.state) || "pre";
+  const comps = comp.competitors || [];
+  const home = comps.find(c=>c.homeAway==="home") || comps[0] || {};
+  const away = comps.find(c=>c.homeAway==="away") || comps[1] || {};
+  const hName = (home.team && (home.team.displayName||home.team.name)) || "待定";
+  const aName = (away.team && (away.team.displayName||away.team.name)) || "待定";
+  const hLogo = home.team && home.team.logo ? `<img src="${home.team.logo}" alt="" onerror="this.style.display='none'">` : "";
+  const aLogo = away.team && away.team.logo ? `<img src="${away.team.logo}" alt="" onerror="this.style.display='none'">` : "";
+
+  let statusCls="pre", statusTxt=fmtTime(d), scoreHtml=`<div class="score dim">${fmtTime(d)}</div>`;
+  if(state==="in"){
+    statusCls="in";
+    statusTxt="● 直播中 " + ((ev.status.displayClock&&ev.status.displayClock!=="0'") ? ev.status.displayClock : (ev.status.type.shortDetail||""));
+    scoreHtml=`<div class="score">${home.score??0} - ${away.score??0}</div>`;
+  }else if(state==="post"){
+    statusCls="post"; statusTxt="已结束";
+    scoreHtml=`<div class="score">${home.score??0} - ${away.score??0}</div>`;
+  }
+  const venue = comp.venue ? `${comp.venue.fullName||""}${comp.venue.address?(" · "+(comp.venue.address.city||"")):""}` : "";
+  return `<div class="match ${state==="in"?"live":""}">
+    <div class="match-top"><span>${fmtCN(d)} <span class="round-tag">${roundLabel(d)}</span></span><span class="status ${statusCls}">${statusTxt}</span></div>
+    <div class="teams">
+      <div class="team">${hLogo}<span class="name">${hName}</span></div>
+      ${scoreHtml}
+      <div class="team away">${aLogo}<span class="name">${aName}</span></div>
+    </div>
+    ${venue?`<div class="venue">📍 ${venue}</div>`:""}
+  </div>`;
+}
+
+// ----- 今日比赛 -----
+function renderToday(){
+  const el = document.getElementById("today");
+  const todayStr = fmtYMD(new Date());
+  const todays = allEvents.filter(ev=>fmtYMD(new Date(ev.date))===todayStr);
+  if(!todays.length){
+    // 显示最近的比赛日
+    const next = allEvents.filter(ev=>new Date(ev.date)>new Date()).slice(0,6);
+    el.innerHTML = `<div class="empty">今天没有比赛安排 🏖️</div>` +
+      (next.length?`<div class="day-header">即将开始</div>`+next.map(matchCard).join(""):"");
+    return;
+  }
+  const live = todays.filter(e=>e.status?.type?.state==="in");
+  const pre = todays.filter(e=>e.status?.type?.state==="pre");
+  const post = todays.filter(e=>e.status?.type?.state==="post");
+  let html="";
+  if(live.length) html+=`<div class="day-header" style="color:var(--live)">🔴 正在进行</div>`+live.map(matchCard).join("");
+  if(pre.length) html+=`<div class="day-header">⏰ 即将开始</div>`+pre.map(matchCard).join("");
+  if(post.length) html+=`<div class="day-header" style="color:var(--muted)">✅ 已结束</div>`+post.map(matchCard).join("");
+  el.innerHTML = html;
+}
+
+// ----- 完整赛程 -----
+function renderDateNav(){
+  const nav = document.getElementById("dateNav");
+  const dates = [...new Set(allEvents.map(ev=>fmtYMD(new Date(ev.date))))].sort();
+  if(!selectedDate){
+    const today = fmtYMD(new Date());
+    selectedDate = dates.includes(today) ? today : (dates.find(x=>x>=today) || dates[0]);
+  }
+  nav.innerHTML = dates.map(ds=>{
+    const d = new Date(ds+"T12:00:00");
+    return `<button class="${ds===selectedDate?"sel":""}" onclick="pickDate('${ds}')">${d.getMonth()+1}/${d.getDate()}</button>`;
+  }).join("");
+}
+function pickDate(ds){ selectedDate=ds; renderDateNav(); renderSchedule(); }
+function renderSchedule(){
+  const list = document.getElementById("scheduleList");
+  const evs = allEvents.filter(ev=>fmtYMD(new Date(ev.date))===selectedDate)
+    .sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(!evs.length){ list.innerHTML=`<div class="empty">该日期暂无比赛数据</div>`; return; }
+  const d = new Date(selectedDate+"T12:00:00");
+  list.innerHTML = `<div class="day-header">${fmtCN(d)} · 共 ${evs.length} 场</div>` + evs.map(matchCard).join("");
+}
+
+// ----- 积分榜 -----
+async function loadStandings(){
+  const el = document.getElementById("standings");
+  try{
+    const res = await fetch(STANDINGS_API);
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const groups = data.children || [];
+    if(!groups.length){ el.innerHTML=`<div class="empty">积分榜数据暂未发布，小组赛开打后将自动显示</div>`; return; }
+    const stat=(entry,names)=>{
+      for(const n of names){
+        const s=(entry.stats||[]).find(x=>x.name===n||x.abbreviation===n);
+        if(s&&s.displayValue!=null) return s.displayValue;
+      }
+      return "-";
+    };
+    el.innerHTML = groups.map(g=>{
+      const entries=(g.standings&&g.standings.entries)||[];
+      const rows = entries.map((e,i)=>{
+        const logo = e.team&&e.team.logos&&e.team.logos[0]?`<img src="${e.team.logos[0].href}" alt="" onerror="this.style.display='none'">`:"";
+        return `<tr class="${i<2?"q":""}">
+          <td><div class="tname">${logo}${(e.team&&(e.team.displayName||e.team.name))||"-"}</div></td>
+          <td>${stat(e,["gamesPlayed","GP"])}</td>
+          <td>${stat(e,["wins","W"])}</td>
+          <td>${stat(e,["ties","D"])}</td>
+          <td>${stat(e,["losses","L"])}</td>
+          <td>${stat(e,["pointDifferential","goalDifferential","GD"])}</td>
+          <td class="pts">${stat(e,["points","P","PTS"])}</td>
+        </tr>`;
+      }).join("");
+      return `<div class="group-card"><h3>${g.name||g.abbreviation||"小组"}</h3>
+        <table><thead><tr><th>球队</th><th>场次</th><th>胜</th><th>平</th><th>负</th><th>净胜</th><th>积分</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+    }).join("");
+  }catch(err){
+    el.innerHTML=`<div class="error">积分榜加载失败<br><button onclick="loadStandings()">重试</button></div>`;
+  }
+}
+
+// ----- 主数据加载 -----
+async function loadScores(){
+  const res = await fetch(API);
+  if(!res.ok) throw new Error(res.status);
+  const data = await res.json();
+  allEvents = (data.events||[]).sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
+async function refreshAll(manual){
+  try{
+    await loadScores();
+    renderToday(); renderDateNav(); renderSchedule();
+    document.getElementById("lastUpdate").textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN");
+  }catch(err){
+    if(!allEvents.length){
+      document.getElementById("today").innerHTML =
+        `<div class="error">数据加载失败，请检查网络<br><button onclick="refreshAll(true)">重试</button></div>`;
+    }
+    document.getElementById("lastUpdate").textContent = "更新失败，将自动重试";
+  }
+  if(manual) loadStandings();
+}
+
+// ----- 标签切换 -----
+function switchTab(id){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelector(`nav button[data-tab="${id}"]`).classList.add("active");
+  if(id==="standings") loadStandings();
+}
+
+// ----- 启动 -----
+refreshAll(false);
+loadStandings();
+timer = setInterval(()=>refreshAll(false), 60000);
+</script>
+</body>
+</html>
